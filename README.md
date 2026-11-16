@@ -46,9 +46,9 @@ Every push is checked on PHP 7.4 and 8.3 and against the WordPress coding standa
 ## Release
 
 1. Bump the version in `komerza-for-woocommerce.php` (the header and `VERSION`) and in `readme.txt` (`Stable tag`, plus a changelog entry).
-2. Commit, then push a matching tag, such as `v1.0.1`.
+2. Commit, then push a matching tag such as `v1.0.1`, or publish a release with that tag on GitHub.
 
-The release workflow checks that the tag and the version agree, builds `komerza-for-woocommerce.zip` and publishes it as a GitHub release. The latest one is always at:
+The release workflow checks that the tag and the version agree, builds `komerza-for-woocommerce.zip` and attaches it to the release, creating the release if it does not exist yet. The latest one is always at:
 
 ```
 https://github.com/komerza/woocommerce/releases/latest/download/komerza-for-woocommerce.zip

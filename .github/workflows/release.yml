@@ -1,7 +1,8 @@
 # Checks every change, and turns every version tag into a GitHub release with the plugin zip attached.
 #
 # To release: bump the version in komerza-for-woocommerce.php (header and VERSION) and readme.txt
-# (Stable tag and changelog), commit, then push a matching tag such as v1.0.1.
+# (Stable tag and changelog) and commit. Then push a matching tag such as v1.0.1, or publish a release
+# with that tag on GitHub. Either way the zip is attached to the release.
 
 name: Release
 
@@ -68,4 +69,11 @@ jobs:
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" komerza-for-woocommerce.zip --title "$GITHUB_REF_NAME" --generate-notes
+          GH_REPO: ${{ github.repository }}
+        # Publishing a release on GitHub's website creates its tag, which runs this, so the release may exist already.
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" komerza-for-woocommerce.zip --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" komerza-for-woocommerce.zip --title "$GITHUB_REF_NAME" --generate-notes
+          fi
