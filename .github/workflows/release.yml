@@ -1,0 +1,71 @@
+# Checks every change, and turns every version tag into a GitHub release with the plugin zip attached.
+#
+# To release: bump the version in komerza-for-woocommerce.php (header and VERSION) and readme.txt
+# (Stable tag and changelog), commit, then push a matching tag such as v1.0.1.
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  lint:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['7.4', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+      - name: Check syntax
+        run: find . -name '*.php' -not -path './dev/*' -print0 | xargs -0 -n 1 php -l
+
+  standards:
+    name: Coding standards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer
+      - name: Install WordPress coding standards
+        run: |
+          composer global config --no-interaction allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
+          composer global require --no-interaction wp-coding-standards/wpcs:^3
+          composer global config bin-dir --absolute 2>/dev/null >> "$GITHUB_PATH"
+      - name: Run PHPCS
+        run: phpcs
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [lint, standards]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the version matches the tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          fail=0
+          grep -Eq "^ \* Version: +${version}$" komerza-for-woocommerce.php || { echo "::error file=komerza-for-woocommerce.php::Plugin header Version is not ${version}"; fail=1; }
+          grep -Eq "^const VERSION += '${version}';$" komerza-for-woocommerce.php || { echo "::error file=komerza-for-woocommerce.php::VERSION is not ${version}"; fail=1; }
+          grep -Eq "^Stable tag: ${version}$" readme.txt || { echo "::error file=readme.txt::Stable tag is not ${version}"; fail=1; }
+          exit $fail
+      - name: Build the zip
+        run: |
+          git archive --format=zip --prefix=komerza-for-woocommerce/ -o komerza-for-woocommerce.zip "$GITHUB_REF_NAME"
+          unzip -l komerza-for-woocommerce.zip
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" komerza-for-woocommerce.zip --title "$GITHUB_REF_NAME" --generate-notes

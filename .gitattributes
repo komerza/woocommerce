@@ -1,0 +1,6 @@
+/.gitattributes  export-ignore
+/.github         export-ignore
+/.gitignore      export-ignore
+/README.md       export-ignore
+/dev             export-ignore
+/phpcs.xml.dist  export-ignore

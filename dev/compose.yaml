@@ -1,0 +1,55 @@
+# A WordPress shop for trying the plugin, reachable over HTTPS through a Cloudflare quick tunnel
+# so Komerza can deliver webhooks to it. Start it with dev/up.sh.
+
+name: komerza-woocommerce
+
+services:
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: wordpress
+      MARIADB_DATABASE: wordpress
+    volumes:
+      - db:/var/lib/mysql
+
+  wordpress:
+    image: wordpress:php8.3
+    depends_on: [db]
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: root
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DEBUG: 1
+      WORDPRESS_CONFIG_EXTRA: |
+        if ( ( $$_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '' ) === 'https' ) {
+          $$_SERVER['HTTPS'] = 'on';
+        }
+        define( 'WP_DEBUG_LOG', true );
+        define( 'WP_DEBUG_DISPLAY', false );
+    volumes:
+      - wordpress:/var/www/html
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    # HTTP/2 over TCP rather than QUIC, which some networks block and which drops the tunnel when they do.
+    command: tunnel --no-autoupdate --protocol http2 --url http://wordpress:80
+    depends_on: [wordpress]
+
+  cli:
+    image: wordpress:cli-php8.3
+    profiles: [tools]
+    user: "33:33"
+    depends_on: [db]
+    environment:
+      WP_CLI_CACHE_DIR: /tmp/wp-cli
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: root
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - wordpress:/var/www/html
+
+volumes:
+  db:
+  wordpress:
